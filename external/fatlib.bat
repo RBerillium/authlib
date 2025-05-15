@@ -1,0 +1,1 @@
+lib /OUT:fatlib.lib authlib.lib libcurl.lib libssl.lib libcrypto.lib
