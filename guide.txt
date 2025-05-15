@@ -1,0 +1,15 @@
+git clone https://github.com/openssl/openssl
+cd openssl
+perl Configure VC-WIN64A no-shared no-tests --prefix=C:\build\openssl
+nmake
+nmake install
+
+
+
+
+git clone https://github.com/curl/curl
+cd curl
+mkdir build && cd build
+
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCURL_STATICLIB=ON -DBUILD_SHARED_LIBS=OFF -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR=C:/build/openssl -DCMAKE_USE_SCHANNEL=OFF -DCMAKE_USE_WINSSL=OFF -DCMAKE_USE_LIBSSH2=OFF -DBUILD_CURL_EXE=OFF -DCURL_USE_LIBPSL=OFF -DENABLE_UNICODE=OFF -DENABLE_IDN=OFF -DENABLE_BROTLI=OFF -DENABLE_ZSTD=OFF -DENABLE_NGHTTP2=OFF
+cmake --build . --config Release
