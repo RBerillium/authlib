@@ -1,18 +1,4 @@
-/*
- * Copyright 2017 - 2021 Justas Masiulis
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#pragma once
 #define JM_XORSTR_DISABLE_AVX_INTRINSICS
 #ifndef JM_XORSTR_HPP
 #define JM_XORSTR_HPP
@@ -31,8 +17,8 @@
 #include <type_traits>
 
 #define xorstr(str) ::jm::xor_string([]() { return str; }, std::integral_constant<std::size_t, sizeof(str) / sizeof(*str)>{}, std::make_index_sequence<::jm::detail::_buffer_size<sizeof(str)>()>{})
-//#define _(str) xorstr(str).crypt_get()
-#define _(str) str
+#define _(str) xorstr(str).crypt_get()
+#define xor(str) xorstr(str).crypt_get()
 
 #ifdef _MSC_VER
 #define XORSTR_FORCEINLINE __forceinline
@@ -40,9 +26,17 @@
 #define XORSTR_FORCEINLINE __attribute__((always_inline)) inline
 #endif
 
-namespace jm {
+#if defined(__clang__) || defined(__GNUC__)
+#define JM_XORSTR_LOAD_FROM_REG(x) ::jm::detail::load_from_reg(x)
+#else
+#define JM_XORSTR_LOAD_FROM_REG(x) (x)
+#endif
 
-    namespace detail {
+namespace jm
+{
+
+    namespace detail
+    {
 
         template<std::size_t Size>
         XORSTR_FORCEINLINE constexpr std::size_t _buffer_size()
@@ -67,7 +61,6 @@ namespace jm {
             return (static_cast<std::uint64_t>(first_part) << 32) | second_part;
         }
 
-        // loads up to 8 characters of string into uint64 and xors it with the key
         template<std::size_t N, class CharT>
         XORSTR_FORCEINLINE constexpr std::uint64_t
             load_xored_str8(std::uint64_t key, std::size_t idx, const CharT* str) noexcept
@@ -85,17 +78,18 @@ namespace jm {
             return value;
         }
 
-        // forces compiler to use registers instead of stuffing constants in rdata
         XORSTR_FORCEINLINE std::uint64_t load_from_reg(std::uint64_t value) noexcept
         {
 #if defined(__clang__) || defined(__GNUC__)
             asm("" : "=r"(value) : "0"(value) : );
-            return value;
-#else
-            volatile std::uint64_t reg = value;
-            return reg;
 #endif
+            return value;
         }
+
+        template<std::uint64_t V>
+        struct uint64_v {
+            constexpr static std::uint64_t value = V;
+        };
 
     } // namespace detail
 
@@ -120,7 +114,7 @@ namespace jm {
 
         template<class L>
         XORSTR_FORCEINLINE xor_string(L l, std::integral_constant<std::size_t, Size>, std::index_sequence<Indices...>) noexcept
-            : _storage{ ::jm::detail::load_from_reg((std::integral_constant<std::uint64_t, detail::load_xored_str8<Size>(Keys, Indices, l())>::value))... }
+            : _storage{ JM_XORSTR_LOAD_FROM_REG(detail::uint64_v<detail::load_xored_str8<Size>(Keys, Indices, l())>::value)... }
         {
         }
 
@@ -131,14 +125,13 @@ namespace jm {
 
         XORSTR_FORCEINLINE void crypt() noexcept
         {
-            // everything is inlined by hand because a certain compiler with a certain linker is _very_ slow
 #if defined(__clang__)
             alignas(alignment)
-                std::uint64_t arr[]{ ::jm::detail::load_from_reg(Keys)... };
+                std::uint64_t arr[]{ JM_XORSTR_LOAD_FROM_REG(Keys)... };
             std::uint64_t* keys =
-                (std::uint64_t*)::jm::detail::load_from_reg((std::uint64_t)arr);
+                (std::uint64_t*)JM_XORSTR_LOAD_FROM_REG((std::uint64_t)arr);
 #else
-            alignas(alignment) std::uint64_t keys[]{ ::jm::detail::load_from_reg(Keys)... };
+            alignas(alignment) std::uint64_t keys[]{ JM_XORSTR_LOAD_FROM_REG(Keys)... };
 #endif
 
 #if defined(_M_ARM64) || defined(__aarch64__) || defined(_M_ARM) || defined(__arm__)
@@ -148,7 +141,7 @@ namespace jm {
                 veorq_u64(__builtin_neon_vld1q_v(reinterpret_cast<const uint64_t*>(_storage) + Indices * 2, 51),
                     __builtin_neon_vld1q_v(reinterpret_cast<const uint64_t*>(keys) + Indices * 2, 51)),
                 51)), ...);
-#else // GCC, MSVC
+#else
             ((Indices >= sizeof(_storage) / 16 ? static_cast<void>(0) : vst1q_u64(
                 reinterpret_cast<uint64_t*>(_storage) + Indices * 2,
                 veorq_u64(vld1q_u64(reinterpret_cast<const uint64_t*>(_storage) + Indices * 2),
@@ -186,14 +179,13 @@ namespace jm {
 
         XORSTR_FORCEINLINE pointer crypt_get() noexcept
         {
-            // crypt() is inlined by hand because a certain compiler with a certain linker is _very_ slow
 #if defined(__clang__)
             alignas(alignment)
-                std::uint64_t arr[]{ ::jm::detail::load_from_reg(Keys)... };
+                std::uint64_t arr[]{ JM_XORSTR_LOAD_FROM_REG(Keys)... };
             std::uint64_t* keys =
-                (std::uint64_t*)::jm::detail::load_from_reg((std::uint64_t)arr);
+                (std::uint64_t*)JM_XORSTR_LOAD_FROM_REG((std::uint64_t)arr);
 #else
-            alignas(alignment) std::uint64_t keys[]{ ::jm::detail::load_from_reg(Keys)... };
+            alignas(alignment) std::uint64_t keys[]{ JM_XORSTR_LOAD_FROM_REG(Keys)... };
 #endif
 
 #if defined(_M_ARM64) || defined(__aarch64__) || defined(_M_ARM) || defined(__arm__)
@@ -239,6 +231,6 @@ namespace jm {
         std::integer_sequence<std::uint64_t, detail::key8<Indices>()...>,
         std::index_sequence<Indices...>>;
 
-} // namespace jm
+}
 
-#endif // include guard
+#endif 

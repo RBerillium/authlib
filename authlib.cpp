@@ -1,18 +1,13 @@
 #include "authlib.hpp"
 
-
-
-
 authlib::authlib()
 {
 	curl_global_init(CURL_GLOBAL_DEFAULT);
-	this->curl = curl_easy_init();
 	create_ca_cert();
 }
 
 authlib::~authlib()
 {
-	curl_easy_cleanup(this->curl);
 	curl_global_cleanup();
 	delete_ca_cert();
 }
@@ -66,9 +61,8 @@ std::string authlib::get_hwid_hash()
 	
 }
 
-bool authlib::auth(const std::string& key, responce_t& result)
+bool authlib::auth(const std::string& key, response_t& result)
 {
-	
 	json j;
 	auto key_str = skCrypt("key");
 	auto application_name = skCrypt("application_name");
@@ -81,16 +75,23 @@ bool authlib::auth(const std::string& key, responce_t& result)
 	application_name.clear();
 	hardware_id_hash.clear();
 
-	std::string json_str = j.dump(); // сериализуем в строку
+	std::string json_str = j.dump();
 
 	std::string auth_link = this->link + skCrypt("/api/validate_key").decrypt();
 
+	CURL* curl = curl_easy_init();
+	if (!curl) {
+		std::cerr << skCrypt("Failed to initialize CURL\n");
+		return false;
+	}
 	curl_easy_setopt(curl, CURLOPT_URL, auth_link.c_str());
 
-	curl_easy_setopt(curl, CURLOPT_CAINFO, this->ca_cert_path.c_str());
+	std::string ca_path = this->ca_cert_path;
+	curl_easy_setopt(curl, CURLOPT_CAINFO, ca_path.c_str());
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	curl_easy_setopt(curl, CURLOPT_PINNEDPUBLICKEY, skCrypt("sha256//oGwi7ILV7mhHVD+xEhgSLR+D0UiBNsRsDdk9AVPh6XQ=").decrypt());
+	curl_easy_setopt(curl, CURLOPT_PINNEDPUBLICKEY, skCrypt("sha256//0qV9ErPG4T+URjwnX20N3J+MjVuJmrbEb2X7o728b2E=").decrypt());
+	//curl_easy_setopt(curl, CURLOPT_PINNEDPUBLICKEY, skCrypt("sha256//oGwi7ILV7mhHVD+xEhgSLR+D0UiBNsRsDdk9AVPh6XQ=").decrypt());
 	// 4. Заголовки
 	struct curl_slist* headers = nullptr;
 	std::string content_type = skCrypt("Content-Type: application/json").decrypt();
@@ -143,16 +144,29 @@ bool authlib::auth(const std::string& key, responce_t& result)
 		std::cerr << ("Failed to parse server response: ") << e.what() << std::endl;
 		return false;
 	}
-
+	
 	// 8. Освобождаем ресурсы
 	curl_slist_free_all(headers);
-
-	return true;
+	curl_easy_cleanup(curl);
+	if (result.valid)
+	{
+		this->authorized = true;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+	
 }
 
 std::vector<uint8_t> authlib::download_file(int file_id, const std::string& key)
 {
 	std::vector<uint8_t> file_data;
+	if (!this->authorized)
+	{
+		return file_data;
+	}
 	json j;
 
 	auto key_str = skCrypt("key");
@@ -171,7 +185,6 @@ std::vector<uint8_t> authlib::download_file(int file_id, const std::string& key)
 
 
 	std::string json_str = j.dump();
-
 	CURL* curl = curl_easy_init();
 	if (!curl) {
 		std::cerr << skCrypt("Failed to initialize CURL\n");
@@ -180,8 +193,10 @@ std::vector<uint8_t> authlib::download_file(int file_id, const std::string& key)
 	auto api_download_file = skCrypt("/api/download_file");
 	std::string download_link = this->link + api_download_file.decrypt();
 
-	curl_easy_setopt(curl, CURLOPT_URL, download_link.c_str()); // или this->link, если URL один
-	curl_easy_setopt(curl, CURLOPT_CAINFO, this->ca_cert_path.c_str());
+	curl_easy_setopt(curl, CURLOPT_URL, download_link.c_str());
+	std::string ca_path = this->ca_cert_path;
+	
+	curl_easy_setopt(curl, CURLOPT_CAINFO, ca_path.c_str());
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 	curl_easy_setopt(curl, CURLOPT_PINNEDPUBLICKEY, skCrypt("sha256//oGwi7ILV7mhHVD+xEhgSLR+D0UiBNsRsDdk9AVPh6XQ=").decrypt());
@@ -221,6 +236,8 @@ std::vector<uint8_t> authlib::download_file(int file_id, const std::string& key)
 
 bool authlib::ban_key(const std::string& key)
 {
+	if (!this->authorized)
+		return false;
 	json j;
 	auto key_str = skCrypt("key");
 	j[key_str.decrypt()] = key;
@@ -228,15 +245,22 @@ bool authlib::ban_key(const std::string& key)
 	std::string json_str = j.dump();
 	std::string ban_link = this->link + skCrypt("/api/ban_key").decrypt();
 
+	CURL* curl = curl_easy_init();
+	if (!curl) {
+		std::cerr << skCrypt("Failed to initialize CURL\n");
+		return false;
+	}
+
 	curl_easy_setopt(curl, CURLOPT_URL, ban_link.c_str());
-	curl_easy_setopt(curl, CURLOPT_CAINFO, this->ca_cert_path.c_str());
+	auto ca_path = this->ca_cert_path.c_str();
+	curl_easy_setopt(curl, CURLOPT_CAINFO, ca_path);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 	curl_easy_setopt(curl, CURLOPT_PINNEDPUBLICKEY, skCrypt("sha256//oGwi7ILV7mhHVD+xEhgSLR+D0UiBNsRsDdk9AVPh6XQ=").decrypt());
 
 	struct curl_slist* headers = nullptr;
 	std::string content_type = skCrypt("Content-Type: application/json").decrypt();
-	std::string validation_key = skCrypt("validation_key: ").decrypt() + this->api_public_key;
+	std::string validation_key = skCrypt("pathology: ").decrypt() + this->api_public_key;
 
 	headers = curl_slist_append(headers, content_type.c_str());
 	headers = curl_slist_append(headers, validation_key.c_str());
@@ -263,7 +287,7 @@ bool authlib::ban_key(const std::string& key)
 	}
 
 	curl_slist_free_all(headers);
-
+	curl_easy_cleanup(curl);
 	return true;
 }
 
@@ -287,4 +311,9 @@ bool authlib::create_ca_cert()
 bool authlib::delete_ca_cert()
 {
 	return std::remove(this->ca_cert_path.c_str()) == 0;
+}
+
+bool authlib::is_authorized()
+{
+	return this->authorized;
 }

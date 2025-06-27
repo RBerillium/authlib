@@ -1,43 +1,43 @@
 #pragma once
 
 #ifdef _KERNEL_MODE
-	namespace std
-	{
-		// STRUCT TEMPLATE remove_reference
-		template <class _Ty>
-		struct remove_reference {
-			using type = _Ty;
-		};
+namespace std
+{
+	// STRUCT TEMPLATE remove_reference
+	template <class _Ty>
+	struct remove_reference {
+		using type = _Ty;
+	};
 
-		template <class _Ty>
-		struct remove_reference<_Ty&> {
-			using type = _Ty;
-		};
+	template <class _Ty>
+	struct remove_reference<_Ty&> {
+		using type = _Ty;
+	};
 
-		template <class _Ty>
-		struct remove_reference<_Ty&&> {
-			using type = _Ty;
-		};
+	template <class _Ty>
+	struct remove_reference<_Ty&&> {
+		using type = _Ty;
+	};
 
-		template <class _Ty>
-		using remove_reference_t = typename remove_reference<_Ty>::type;
+	template <class _Ty>
+	using remove_reference_t = typename remove_reference<_Ty>::type;
 
-		// STRUCT TEMPLATE remove_const
-		template <class _Ty>
-		struct remove_const { // remove top-level const qualifier
-			using type = _Ty;
-		};
+	// STRUCT TEMPLATE remove_const
+	template <class _Ty>
+	struct remove_const { // remove top-level const qualifier
+		using type = _Ty;
+	};
 
-		template <class _Ty>
-		struct remove_const<const _Ty> {
-			using type = _Ty;
-		};
+	template <class _Ty>
+	struct remove_const<const _Ty> {
+		using type = _Ty;
+	};
 
-		template <class _Ty>
-		using remove_const_t = typename remove_const<_Ty>::type;
-	}
+	template <class _Ty>
+	using remove_const_t = typename remove_const<_Ty>::type;
+}
 #else
-	#include <type_traits>
+#include <type_traits>
 #endif
 
 namespace skc
@@ -50,7 +50,7 @@ namespace skc
 	{
 	public:
 		__forceinline constexpr skCrypter(T* data)
-		{		
+		{
 			crypt(data);
 		}
 
@@ -104,7 +104,7 @@ namespace skc
 
 			return _storage;
 		}
-		
+
 	private:
 		__forceinline constexpr void crypt(T* data)
 		{
@@ -112,7 +112,7 @@ namespace skc
 			{
 				_storage[i] = data[i] ^ (_key1 + i % (1 + _key2));
 			}
-		}	
+		}
 
 		T _storage[_size]{};
 	};

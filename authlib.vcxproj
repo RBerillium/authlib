@@ -85,8 +85,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\libcurl\curl\include;C:\build\openssl\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\build\openssl\lib;C:\libcurl\curl\build\lib\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\Buba\Desktop\protect\VMProtect\Include\C;C:\libcurl\curl\include;C:\Windows\openssl_build\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Windows\openssl_build\lib;C:\Users\Buba\Desktop\protect\VMProtect\Lib\Windows;C:\build\openssl\lib;C:\libcurl\curl\build\lib\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
@@ -144,7 +144,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
@@ -152,6 +152,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <Optimization>MaxSpeed</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>
